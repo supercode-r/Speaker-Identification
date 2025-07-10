@@ -38,8 +38,12 @@ This project implements a speaker identification system for the CMT Data Science
 # Install dependencies
 pip install -r requirements.txt
 
-# Run the complete pipeline
+# Run this command for in-depth visualization and interpretability, including pattern analysis and feature importance insights.
+python analysis.py
+
+# Run the command to execute the complete pipeline and generate the test Predictions label
 python speaker_identification.py
+
 ```
 
 ## Files Required
