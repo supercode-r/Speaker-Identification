@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.svm import SVC
+from sklearn.ensemble import VotingClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import StratifiedKFold, cross_val_score
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
@@ -226,7 +227,7 @@ class SpeakerIdentificationSystem:
         print(f"Average sequence length: {np.mean(lengths):.1f} ± {np.std(lengths):.1f}")
         print(f"Number of speakers: {len(unique_labels)}")
         
-    def train_model(self, model_type='ensemble'):
+    def train_model(self, model_type):
         """Train the speaker identification model"""
         print("Extracting features...")
         X_train = self.extract_features(self.train_data)
@@ -240,16 +241,46 @@ class SpeakerIdentificationSystem:
         # Create and train model
         if model_type == 'ensemble':
             # Ensemble of multiple models
-            rf = RandomForestClassifier(n_estimators=200, max_depth=15, random_state=42, 
-                                      min_samples_split=5, min_samples_leaf=2)
-            gb = GradientBoostingClassifier(n_estimators=100, max_depth=6, random_state=42)
-            svm = SVC(kernel='rbf', C=1.0, gamma='scale', random_state=42)
-            
-            # Use RandomForest as primary (usually works well for this type of problem)
-            self.model = Pipeline([
+            rf = Pipeline([
                 ('scaler', StandardScaler()),
-                ('classifier', rf)
+                ('rf', RandomForestClassifier(
+                    n_estimators=200, 
+                    max_depth=15, 
+                    random_state=42, 
+                    min_samples_split=5, 
+                    min_samples_leaf=2
+                ))
             ])
+            
+            gb = Pipeline([
+                ('scaler', StandardScaler()),
+                ('gb', GradientBoostingClassifier(
+                    n_estimators=100, 
+                    max_depth=6, 
+                    random_state=42
+                ))
+            ])
+
+            svm = Pipeline([
+                ('scaler', StandardScaler()),
+                ('svm', SVC(
+                    kernel='rbf', 
+                    C=1.0, 
+                    gamma='scale', 
+                    probability=True,  # Needed for soft voting
+                    random_state=42
+                ))
+            ])
+            
+            # Combine into a soft-voting ensemble
+            self.model = VotingClassifier(
+                estimators=[
+                    ('rf', rf),
+                    ('gb', gb),
+                    ('svm', svm)
+                ],
+                voting='soft'
+            )
             
         elif model_type == 'gradient_boosting':
             self.model = Pipeline([
@@ -340,7 +371,7 @@ def main():
     speaker_system.visualize_data()
     
     # Train the model
-    model = speaker_system.train_model(model_type='ensemble')
+    model = speaker_system.train_model(model_type='')
     
     # Generate predictions
     submission = speaker_system.predict_test_set()
